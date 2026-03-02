@@ -1,0 +1,17 @@
+{
+  "name": "tasks-kanban",
+  "version": "1.0.0",
+  "description": "Kanban board UI for task management",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "jest"
+  },
+  "dependencies": {
+    "express": "^4.21.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^7.0.0"
+  }
+}
