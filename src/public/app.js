@@ -51,7 +51,7 @@ function formatDue(dateStr) {
 
 function renderBoard() {
   const filtered = currentFolder
-    ? tasks.filter((t) => t.folderId === parseInt(currentFolder))
+    ? tasks.filter((t) => String(t.folderId) === currentFolder)
     : tasks;
 
   const columns = {
@@ -128,7 +128,7 @@ let draggedTaskId = null;
 document.getElementById("board").addEventListener("dragstart", (e) => {
   const card = e.target.closest(".card");
   if (!card) return;
-  draggedTaskId = parseInt(card.dataset.id);
+  draggedTaskId = card.dataset.id;
   card.classList.add("dragging");
   e.dataTransfer.effectAllowed = "move";
   e.dataTransfer.setData("text/plain", draggedTaskId);
@@ -197,14 +197,13 @@ document.getElementById("board").addEventListener("drop", async (e) => {
 document.getElementById("board").addEventListener("click", (e) => {
   const card = e.target.closest(".card");
   if (!card) return;
-  const id = parseInt(card.dataset.id);
-  selectCard(id);
+  selectCard(card.dataset.id);
 });
 
 document.getElementById("board").addEventListener("dblclick", (e) => {
   const card = e.target.closest(".card");
   if (!card) return;
-  const id = parseInt(card.dataset.id);
+  const id = card.dataset.id;
   selectCard(id);
   openDetailPane(id);
 });
@@ -411,7 +410,7 @@ function bindDetailEvents(task) {
   });
 
   folderSelect.addEventListener("change", async () => {
-    const val = folderSelect.value ? parseInt(folderSelect.value) : null;
+    const val = folderSelect.value || null;
     task.folderId = val;
     try {
       await api(`/tasks/${task.id}/move`, {
@@ -457,10 +456,10 @@ function bindDetailEvents(task) {
   // Tag removal
   document.querySelectorAll(".remove-tag").forEach((btn) => {
     btn.addEventListener("click", async () => {
-      const tagId = parseInt(btn.dataset.tagId);
+      const tagId = btn.dataset.tagId;
       try {
         await api(`/tasks/${task.id}/tags/${tagId}`, { method: "DELETE" });
-        task.tags = task.tags.filter((t) => t.id !== tagId);
+        task.tags = task.tags.filter((t) => String(t.id) !== tagId);
         renderDetail(task);
         renderBoard();
       } catch (err) {
@@ -481,11 +480,11 @@ function bindDetailEvents(task) {
 
   document.querySelectorAll(".delete-note").forEach((btn) => {
     btn.addEventListener("click", async () => {
-      const noteId = parseInt(btn.dataset.noteId);
+      const noteId = btn.dataset.noteId;
       if (!confirm("Delete this note?")) return;
       try {
         await api(`/tasks/${task.id}/notes/${noteId}`, { method: "DELETE" });
-        task.notes = task.notes.filter((n) => n.id !== noteId);
+        task.notes = task.notes.filter((n) => String(n.id) !== noteId);
         renderDetail(task);
       } catch (err) {
         toast("Failed to delete note");
@@ -495,8 +494,8 @@ function bindDetailEvents(task) {
 
   document.querySelectorAll(".edit-note").forEach((btn) => {
     btn.addEventListener("click", () => {
-      const noteId = parseInt(btn.dataset.noteId);
-      const note = task.notes.find((n) => n.id === noteId);
+      const noteId = btn.dataset.noteId;
+      const note = task.notes.find((n) => String(n.id) === noteId);
       if (!note) return;
       showNoteEdit(task, note);
     });
@@ -527,8 +526,8 @@ function showTagPicker(task) {
     return;
   }
 
-  const taskTagIds = (task.tags || []).map((t) => t.id);
-  const available = tags.filter((t) => !taskTagIds.includes(t.id));
+  const taskTagIds = new Set((task.tags || []).map((t) => String(t.id)));
+  const available = tags.filter((t) => !taskTagIds.has(String(t.id)));
 
   const picker = document.createElement("div");
   picker.id = "tag-picker";
@@ -552,10 +551,10 @@ function showTagPicker(task) {
   picker.addEventListener("click", async (e) => {
     const item = e.target.closest(".tag-pick-item");
     if (!item) return;
-    const tagId = parseInt(item.dataset.tagId);
+    const tagId = item.dataset.tagId;
     try {
       await api(`/tasks/${task.id}/tags/${tagId}`, { method: "POST" });
-      const tag = tags.find((t) => t.id === tagId);
+      const tag = tags.find((t) => String(t.id) === tagId);
       if (tag) {
         task.tags = task.tags || [];
         task.tags.push(tag);
@@ -670,7 +669,7 @@ document.getElementById("new-task-btn").addEventListener("click", async () => {
       body: JSON.stringify({
         title: title.trim(),
         status: "todo",
-        folderId: currentFolder ? parseInt(currentFolder) : null,
+        folderId: currentFolder || null,
       }),
     });
     tasks.unshift(task);
@@ -703,7 +702,7 @@ function populateFolderFilter() {
     folders
       .map(
         (f) =>
-          `<option value="${f.id}"${f.id === parseInt(currentFolder) ? " selected" : ""}>${escHtml(f.name)}</option>`
+          `<option value="${f.id}"${String(f.id) === currentFolder ? " selected" : ""}>${escHtml(f.name)}</option>`
       )
       .join("");
 }
