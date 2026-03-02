@@ -47,6 +47,18 @@ function formatDue(dateStr) {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
+function dueDateClass(dateStr) {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const target = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const diff = Math.round((target - today) / 86400000);
+  if (diff < 0) return "overdue";
+  if (diff === 0) return "today";
+  return "";
+}
+
 // --- Rendering ---
 
 function renderBoard() {
@@ -102,7 +114,9 @@ function renderCard(task) {
       : "";
 
   const due = formatDue(task.dueDate);
-  const dueHtml = due ? `<span class="card-due">${due}</span>` : "";
+  const dueClass = dueDateClass(task.dueDate);
+  const dueCssClasses = ["card-due", dueClass].filter(Boolean).join(" ");
+  const dueHtml = due ? `<span class="${dueCssClasses}">${due}</span>` : "";
 
   const doneClass = task.status === "done" ? " done" : "";
 
@@ -192,15 +206,9 @@ document.getElementById("board").addEventListener("drop", async (e) => {
   }
 });
 
-// --- Card click handlers ---
+// --- Card click handler (single-click opens detail) ---
 
 document.getElementById("board").addEventListener("click", (e) => {
-  const card = e.target.closest(".card");
-  if (!card) return;
-  selectCard(card.dataset.id);
-});
-
-document.getElementById("board").addEventListener("dblclick", (e) => {
   const card = e.target.closest(".card");
   if (!card) return;
   const id = card.dataset.id;
@@ -224,19 +232,13 @@ function openDetailPane(taskId) {
   selectedTaskId = taskId;
   const pane = document.getElementById("detail-pane");
   pane.classList.remove("hidden");
-  // Force reflow then add open class for animation
-  pane.offsetHeight;
-  pane.classList.add("open");
-  document.getElementById("board").classList.add("detail-open");
 
   renderDetail(task);
 }
 
 function closeDetailPane() {
   const pane = document.getElementById("detail-pane");
-  pane.classList.remove("open");
-  document.getElementById("board").classList.remove("detail-open");
-  setTimeout(() => pane.classList.add("hidden"), 150);
+  pane.classList.add("hidden");
   selectedTaskId = null;
   document.querySelectorAll(".card.selected").forEach((c) => c.classList.remove("selected"));
 }
@@ -244,10 +246,28 @@ function closeDetailPane() {
 document.getElementById("detail-close").addEventListener("click", closeDetailPane);
 
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") closeDetailPane();
+  if (e.key === "Escape") {
+    closeDetailPane();
+    return;
+  }
+
+  // Skip keyboard shortcuts when focused on input elements
+  const tag = document.activeElement && document.activeElement.tagName;
+  if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || (document.activeElement && document.activeElement.isContentEditable)) {
+    return;
+  }
+
+  if (e.key === "n") {
+    e.preventDefault();
+    document.getElementById("new-task-btn").click();
+  }
 });
 
 function renderDetail(task) {
+  const titleEl = document.getElementById("detail-title");
+  titleEl.textContent = task.title;
+  titleEl.contentEditable = "true";
+
   const body = document.querySelector(".detail-body");
   const folder = folders.find((f) => f.id === task.folderId);
   const folderOptions = folders
@@ -282,11 +302,7 @@ function renderDetail(task) {
     .join("");
 
   body.innerHTML = `
-    <div class="detail-field">
-      <label>Title</label>
-      <input type="text" id="detail-title" value="${escHtml(task.title)}">
-    </div>
-    <div class="detail-field">
+    <div class="field-row">
       <label>Status</label>
       <select id="detail-status">
         <option value="todo"${task.status === "todo" ? " selected" : ""}>Todo</option>
@@ -295,7 +311,7 @@ function renderDetail(task) {
         <option value="cancelled"${task.status === "cancelled" ? " selected" : ""}>Cancelled</option>
       </select>
     </div>
-    <div class="detail-field">
+    <div class="field-row">
       <label>Priority</label>
       <select id="detail-priority">
         <option value=""${!task.priority ? " selected" : ""}>None</option>
@@ -305,43 +321,49 @@ function renderDetail(task) {
         <option value="urgent"${task.priority === "urgent" ? " selected" : ""}>Urgent</option>
       </select>
     </div>
-    <div class="detail-field">
+    <div class="field-row">
       <label>Folder</label>
       <select id="detail-folder">
         <option value="">None</option>
         ${folderOptions}
       </select>
     </div>
-    <div class="detail-field">
+    <div class="field-row">
       <label>Tags</label>
-      <div class="detail-tags">
+      <div class="tags-container">
         ${tagHtml}
         <button class="add-tag-btn" id="add-tag-trigger">+</button>
       </div>
     </div>
-    <div class="detail-field">
+    <div class="field-row">
       <label>Due Date</label>
       <input type="date" id="detail-due" value="${task.dueDate ? task.dueDate.split("T")[0] : ""}">
     </div>
-    <div class="detail-field">
+    <div class="field-row">
       <label>Started</label>
-      <span style="font-size:13px;color:var(--text-muted)">${task.startedAt ? new Date(task.startedAt).toLocaleDateString() : "—"}</span>
+      <span>${task.startedAt ? new Date(task.startedAt).toLocaleDateString() : "\u2014"}</span>
     </div>
-    <div class="detail-field">
+    <div class="field-row">
       <label>Completed</label>
-      <span style="font-size:13px;color:var(--text-muted)">${task.completedAt ? new Date(task.completedAt).toLocaleDateString() : "—"}</span>
+      <span>${task.completedAt ? new Date(task.completedAt).toLocaleDateString() : "\u2014"}</span>
     </div>
-    <div class="detail-field">
-      <label>Description</label>
+    <div class="detail-section">
+      <h3>Description</h3>
       <textarea id="detail-description">${escHtml(task.description || "")}</textarea>
     </div>
-    <div class="notes-section">
+    <div class="detail-section">
       <h3>Notes</h3>
       ${notesHtml}
       <button class="add-note-btn" id="add-note-btn">+ Add note</button>
     </div>
     <button class="delete-task-btn" id="delete-task-btn">Delete Task</button>
   `;
+
+  // Auto-resize description
+  const descEl = document.getElementById("detail-description");
+  if (descEl) {
+    descEl.style.height = Math.max(200, descEl.scrollHeight) + "px";
+  }
 
   bindDetailEvents(task);
 }
@@ -351,15 +373,16 @@ function renderDetail(task) {
 let descSaveTimer;
 
 function bindDetailEvents(task) {
-  const titleInput = document.getElementById("detail-title");
+  const titleEl = document.getElementById("detail-title");
   const statusSelect = document.getElementById("detail-status");
   const prioritySelect = document.getElementById("detail-priority");
   const folderSelect = document.getElementById("detail-folder");
   const dueInput = document.getElementById("detail-due");
   const descInput = document.getElementById("detail-description");
 
-  titleInput.addEventListener("blur", async () => {
-    const val = titleInput.value.trim();
+  // Contenteditable title — blur saves
+  titleEl.addEventListener("blur", async () => {
+    const val = titleEl.textContent.trim();
     if (val && val !== task.title) {
       task.title = val;
       renderBoard();
@@ -371,6 +394,14 @@ function bindDetailEvents(task) {
       } catch (err) {
         toast("Failed to update title");
       }
+    }
+  });
+
+  // Enter key on title triggers blur to save
+  titleEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      titleEl.blur();
     }
   });
 
@@ -438,6 +469,10 @@ function bindDetailEvents(task) {
   });
 
   descInput.addEventListener("input", () => {
+    // Auto-resize
+    descInput.style.height = "auto";
+    descInput.style.height = Math.max(200, descInput.scrollHeight) + "px";
+
     clearTimeout(descSaveTimer);
     descSaveTimer = setTimeout(async () => {
       const val = descInput.value;
@@ -519,7 +554,7 @@ function bindDetailEvents(task) {
 // --- Tag picker ---
 
 function showTagPicker(task) {
-  const container = document.querySelector(".detail-tags");
+  const container = document.querySelector(".tags-container");
   const existing = document.getElementById("tag-picker");
   if (existing) {
     existing.remove();

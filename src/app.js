@@ -32,30 +32,32 @@ app.get("/kanban", auth, (req, res) => {
         <button id="new-task-btn">+ New Task</button>
       </div>
     </header>
-    <div id="board">
-      <div class="column" data-status="todo">
-        <div class="column-header"><span class="column-title">Todo</span> <span class="column-count">0</span></div>
-        <div class="column-cards"></div>
+    <div id="content">
+      <div id="board">
+        <div class="column" data-status="todo">
+          <div class="column-header"><span class="column-title">Todo</span> <span class="column-count">0</span></div>
+          <div class="column-cards"></div>
+        </div>
+        <div class="column" data-status="in_progress">
+          <div class="column-header"><span class="column-title">In Progress</span> <span class="column-count">0</span></div>
+          <div class="column-cards"></div>
+        </div>
+        <div class="column" data-status="done">
+          <div class="column-header"><span class="column-title">Done</span> <span class="column-count">0</span></div>
+          <div class="column-cards"></div>
+        </div>
+        <div class="column" data-status="cancelled">
+          <div class="column-header"><span class="column-title">Cancelled</span> <span class="column-count">0</span></div>
+          <div class="column-cards"></div>
+        </div>
       </div>
-      <div class="column" data-status="in_progress">
-        <div class="column-header"><span class="column-title">In Progress</span> <span class="column-count">0</span></div>
-        <div class="column-cards"></div>
+      <div id="detail-pane" class="detail-pane hidden">
+        <div class="detail-header">
+          <h2 id="detail-title" contenteditable="false"></h2>
+          <button id="detail-close" class="close-btn">&times;</button>
+        </div>
+        <div class="detail-body"></div>
       </div>
-      <div class="column" data-status="done">
-        <div class="column-header"><span class="column-title">Done</span> <span class="column-count">0</span></div>
-        <div class="column-cards"></div>
-      </div>
-      <div class="column" data-status="cancelled">
-        <div class="column-header"><span class="column-title">Cancelled</span> <span class="column-count">0</span></div>
-        <div class="column-cards"></div>
-      </div>
-    </div>
-    <div id="detail-pane" class="hidden">
-      <div class="detail-header">
-        <span class="detail-title">Task Detail</span>
-        <button id="detail-close">&times;</button>
-      </div>
-      <div class="detail-body"></div>
     </div>
     <div id="toast" class="hidden"></div>
     <div id="loading-spinner">Loading&hellip;</div>

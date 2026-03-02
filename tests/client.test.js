@@ -78,30 +78,32 @@ const HTML_TEMPLATE = `<div id="app">
       <button id="new-task-btn">+ New Task</button>
     </div>
   </header>
-  <div id="board">
-    <div class="column" data-status="todo">
-      <div class="column-header"><span class="column-title">Todo</span> <span class="column-count">0</span></div>
-      <div class="column-cards"></div>
+  <div id="content">
+    <div id="board">
+      <div class="column" data-status="todo">
+        <div class="column-header"><span class="column-title">Todo</span> <span class="column-count">0</span></div>
+        <div class="column-cards"></div>
+      </div>
+      <div class="column" data-status="in_progress">
+        <div class="column-header"><span class="column-title">In Progress</span> <span class="column-count">0</span></div>
+        <div class="column-cards"></div>
+      </div>
+      <div class="column" data-status="done">
+        <div class="column-header"><span class="column-title">Done</span> <span class="column-count">0</span></div>
+        <div class="column-cards"></div>
+      </div>
+      <div class="column" data-status="cancelled">
+        <div class="column-header"><span class="column-title">Cancelled</span> <span class="column-count">0</span></div>
+        <div class="column-cards"></div>
+      </div>
     </div>
-    <div class="column" data-status="in_progress">
-      <div class="column-header"><span class="column-title">In Progress</span> <span class="column-count">0</span></div>
-      <div class="column-cards"></div>
+    <div id="detail-pane" class="detail-pane hidden">
+      <div class="detail-header">
+        <h2 id="detail-title" contenteditable="false"></h2>
+        <button id="detail-close" class="close-btn">&times;</button>
+      </div>
+      <div class="detail-body"></div>
     </div>
-    <div class="column" data-status="done">
-      <div class="column-header"><span class="column-title">Done</span> <span class="column-count">0</span></div>
-      <div class="column-cards"></div>
-    </div>
-    <div class="column" data-status="cancelled">
-      <div class="column-header"><span class="column-title">Cancelled</span> <span class="column-count">0</span></div>
-      <div class="column-cards"></div>
-    </div>
-  </div>
-  <div id="detail-pane" class="hidden">
-    <div class="detail-header">
-      <span class="detail-title">Task Detail</span>
-      <button id="detail-close">&times;</button>
-    </div>
-    <div class="detail-body"></div>
   </div>
   <div id="toast" class="hidden"></div>
   <div id="loading-spinner">Loading&hellip;</div>
@@ -218,10 +220,10 @@ function columnCount(status) {
 }
 function detailIsOpen() {
   const p = document.getElementById("detail-pane");
-  return !p.classList.contains("hidden") && p.classList.contains("open");
+  return !p.classList.contains("hidden");
 }
 function openDetail(id) {
-  document.querySelector(`.card[data-id="${id}"]`).dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+  document.querySelector(`.card[data-id="${id}"]`).click();
 }
 function makeDT() {
   return { data: {}, effectAllowed: "none", dropEffect: "none", setData(f, v) { this.data[f] = v; }, getData(f) { return this.data[f]; } };
@@ -311,10 +313,11 @@ describe("Kanban Board Client", () => {
   // --- Selection ---
 
   describe("Card Selection", () => {
-    test("click selects card", () => {
+    test("click selects card and opens detail", () => {
       const card = getCardsIn("todo")[0];
       card.click();
       expect(card.classList.contains("selected")).toBe(true);
+      expect(detailIsOpen()).toBe(true);
     });
 
     test("clicking new card deselects previous", () => {
@@ -330,21 +333,23 @@ describe("Kanban Board Client", () => {
   // --- Detail pane open/close ---
 
   describe("Detail Pane", () => {
-    test("double click opens detail pane", () => {
+    test("click opens detail pane", () => {
       openDetail("abc-001");
       expect(detailIsOpen()).toBe(true);
     });
 
-    test("double click with GUID IDs works (core bug fix)", () => {
+    test("click with GUID IDs works (core bug fix)", () => {
       expect(getCardsIn("todo")[0].dataset.id).toBe("abc-001");
       openDetail("abc-001");
       expect(detailIsOpen()).toBe(true);
-      expect(document.getElementById("detail-title").value).toBe("Buy groceries");
+      expect(document.getElementById("detail-title").textContent).toBe("Buy groceries");
     });
 
-    test("shows task title", () => {
+    test("shows task title in contenteditable header", () => {
       openDetail("abc-001");
-      expect(document.getElementById("detail-title").value).toBe("Buy groceries");
+      const titleEl = document.getElementById("detail-title");
+      expect(titleEl.textContent).toBe("Buy groceries");
+      expect(titleEl.contentEditable).toBe("true");
     });
 
     test("shows correct status", () => {
@@ -391,25 +396,22 @@ describe("Kanban Board Client", () => {
       expect(document.querySelector(".detail-body").innerHTML).toContain("Completed");
     });
 
-    test("close button closes pane", async () => {
+    test("close button closes pane", () => {
       openDetail("abc-001");
       expect(detailIsOpen()).toBe(true);
       document.getElementById("detail-close").click();
-      await delay(200);
       expect(document.getElementById("detail-pane").classList.contains("hidden")).toBe(true);
     });
 
-    test("Escape closes pane", async () => {
+    test("Escape closes pane", () => {
       openDetail("abc-001");
       document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
-      await delay(200);
       expect(document.getElementById("detail-pane").classList.contains("hidden")).toBe(true);
     });
 
-    test("closing removes selection", async () => {
+    test("closing removes selection", () => {
       openDetail("abc-001");
       document.getElementById("detail-close").click();
-      await delay(200);
       expect(document.querySelectorAll(".card.selected").length).toBe(0);
     });
   });
@@ -564,9 +566,9 @@ describe("Kanban Board Client", () => {
 
     test("title blur calls PUT when changed", async () => {
       openDetail("abc-001");
-      const input = document.getElementById("detail-title");
-      input.value = "New Title";
-      input.dispatchEvent(new Event("blur"));
+      const titleEl = document.getElementById("detail-title");
+      titleEl.textContent = "New Title";
+      titleEl.dispatchEvent(new Event("blur"));
       await flush();
 
       const call = fetchMock.mock.calls.find(
@@ -647,7 +649,6 @@ describe("Kanban Board Client", () => {
       global.confirm.mockReturnValue(true);
       document.getElementById("delete-task-btn").click();
       await flush();
-      await delay(200);
 
       expect(fetchMock.mock.calls.find(
         ([url, opts]) => url.includes("/tasks/abc-001") && opts && opts.method === "DELETE"
@@ -735,6 +736,26 @@ describe("Kanban Board Client", () => {
       expect(fetchMock.mock.calls.find(
         ([url, opts]) => url.includes("/tasks/abc-001/notes/note-1") && opts && opts.method === "DELETE"
       )).toBeTruthy();
+    });
+  });
+
+  // --- Keyboard shortcuts ---
+
+  describe("Keyboard Shortcuts", () => {
+    test("n key triggers new task creation", () => {
+      global.prompt.mockReturnValue(null);
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "n" }));
+      expect(global.prompt).toHaveBeenCalledWith("Task title:");
+    });
+
+    test("n key does not trigger when focused on input", () => {
+      openDetail("abc-001");
+      const desc = document.getElementById("detail-description");
+      desc.focus();
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "n" }));
+      // prompt should not have been called (only the initial load calls, not from 'n' key)
+      const promptCalls = global.prompt.mock.calls.filter(c => c[0] === "Task title:");
+      expect(promptCalls.length).toBe(0);
     });
   });
 
