@@ -29,9 +29,9 @@ describe("GET /kanban", () => {
       .get("/kanban")
       .auth("admin", "testpass123");
     expect(res.text).toContain("Kanban Board");
-    expect(res.text).toContain('data-status="todo"');
+    expect(res.text).toContain('data-status="not_started"');
     expect(res.text).toContain('data-status="in_progress"');
-    expect(res.text).toContain('data-status="done"');
+    expect(res.text).toContain('data-status="complete"');
     expect(res.text).toContain('data-status="cancelled"');
   });
 
@@ -39,9 +39,9 @@ describe("GET /kanban", () => {
     const res = await request(app)
       .get("/kanban")
       .auth("admin", "testpass123");
-    expect(res.text).toContain("Todo");
+    expect(res.text).toContain("Not Started");
     expect(res.text).toContain("In Progress");
-    expect(res.text).toContain("Done");
+    expect(res.text).toContain("Complete");
     expect(res.text).toContain("Cancelled");
   });
 

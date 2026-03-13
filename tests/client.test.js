@@ -9,7 +9,7 @@ const path = require("path");
 const TASK_1 = {
   id: "abc-001",
   title: "Buy groceries",
-  status: "todo",
+  status: "not_started",
   priority: "medium",
   folderId: "folder-1",
   dueDate: null,
@@ -18,6 +18,7 @@ const TASK_1 = {
   tags: [{ id: "tag-1", name: "personal" }],
   notes: [{ id: "note-1", content: "Milk and eggs", createdAt: "2026-01-01T00:00:00Z" }],
   description: "Weekly shopping",
+  aiStatus: "not_applicable",
 };
 
 const TASK_2 = {
@@ -32,12 +33,13 @@ const TASK_2 = {
   tags: [],
   notes: [],
   description: "",
+  aiStatus: "not_applicable",
 };
 
 const TASK_3 = {
   id: "abc-003",
   title: "Deploy app",
-  status: "done",
+  status: "complete",
   priority: null,
   folderId: null,
   dueDate: null,
@@ -46,6 +48,7 @@ const TASK_3 = {
   tags: [],
   notes: [],
   description: "Production deploy",
+  aiStatus: "not_applicable",
 };
 
 const TASK_4 = {
@@ -60,6 +63,7 @@ const TASK_4 = {
   tags: [],
   notes: [],
   description: "",
+  aiStatus: "not_applicable",
 };
 
 const FOLDERS = [{ id: "folder-1", name: "Work" }];
@@ -80,16 +84,16 @@ const HTML_TEMPLATE = `<div id="app">
   </header>
   <div id="content">
     <div id="board">
-      <div class="column" data-status="todo">
-        <div class="column-header"><span class="column-title">Todo</span> <span class="column-count">0</span></div>
+      <div class="column" data-status="not_started">
+        <div class="column-header"><span class="column-title">Not Started</span> <span class="column-count">0</span></div>
         <div class="column-cards"></div>
       </div>
       <div class="column" data-status="in_progress">
         <div class="column-header"><span class="column-title">In Progress</span> <span class="column-count">0</span></div>
         <div class="column-cards"></div>
       </div>
-      <div class="column" data-status="done">
-        <div class="column-header"><span class="column-title">Done</span> <span class="column-count">0</span></div>
+      <div class="column" data-status="complete">
+        <div class="column-header"><span class="column-title">Complete</span> <span class="column-count">0</span></div>
         <div class="column-cards"></div>
       </div>
       <div class="column" data-status="cancelled">
@@ -194,6 +198,9 @@ function makeFetchMock(taskList) {
         text: () => Promise.resolve(""),
       });
     }
+    if (/\/tasks\/[^/]+\/ai-status$/.test(url) && method === "PATCH") {
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({}), text: () => Promise.resolve("") });
+    }
     if (/\/tasks\/[^/]+\/move$/.test(url) && method === "PATCH") {
       return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({}), text: () => Promise.resolve("") });
     }
@@ -264,45 +271,45 @@ describe("Kanban Board Client", () => {
 
   describe("Board Rendering", () => {
     test("renders tasks in correct columns", () => {
-      expect(getCardsIn("todo").length).toBe(1);
+      expect(getCardsIn("not_started").length).toBe(1);
       expect(getCardsIn("in_progress").length).toBe(1);
-      expect(getCardsIn("done").length).toBe(1);
+      expect(getCardsIn("complete").length).toBe(1);
       expect(getCardsIn("cancelled").length).toBe(1);
     });
 
     test("shows correct column counts", () => {
-      expect(columnCount("todo")).toBe("1");
+      expect(columnCount("not_started")).toBe("1");
       expect(columnCount("in_progress")).toBe("1");
-      expect(columnCount("done")).toBe("1");
+      expect(columnCount("complete")).toBe("1");
       expect(columnCount("cancelled")).toBe("1");
     });
 
     test("renders card titles", () => {
-      expect(getCardsIn("todo")[0].querySelector(".card-title").textContent).toBe("Buy groceries");
+      expect(getCardsIn("not_started")[0].querySelector(".card-title").textContent).toBe("Buy groceries");
     });
 
     test("renders priority dots", () => {
-      const dot = getCardsIn("todo")[0].querySelector(".priority-dot");
+      const dot = getCardsIn("not_started")[0].querySelector(".priority-dot");
       expect(dot).toBeTruthy();
       expect(dot.classList.contains("medium")).toBe(true);
     });
 
     test("renders tag chips", () => {
-      const chip = getCardsIn("todo")[0].querySelector(".tag-chip");
+      const chip = getCardsIn("not_started")[0].querySelector(".tag-chip");
       expect(chip).toBeTruthy();
       expect(chip.textContent).toBe("personal");
     });
 
     test("done cards have done class", () => {
-      expect(getCardsIn("done")[0].classList.contains("done")).toBe(true);
+      expect(getCardsIn("complete")[0].classList.contains("done")).toBe(true);
     });
 
     test("cards are draggable", () => {
-      expect(getCardsIn("todo")[0].getAttribute("draggable")).toBe("true");
+      expect(getCardsIn("not_started")[0].getAttribute("draggable")).toBe("true");
     });
 
     test("cards have correct string data-id (GUID)", () => {
-      expect(getCardsIn("todo")[0].dataset.id).toBe("abc-001");
+      expect(getCardsIn("not_started")[0].dataset.id).toBe("abc-001");
     });
 
     test("hides loading spinner", () => {
@@ -314,14 +321,14 @@ describe("Kanban Board Client", () => {
 
   describe("Card Selection", () => {
     test("click selects card and opens detail", () => {
-      const card = getCardsIn("todo")[0];
+      const card = getCardsIn("not_started")[0];
       card.click();
       expect(card.classList.contains("selected")).toBe(true);
       expect(detailIsOpen()).toBe(true);
     });
 
     test("clicking new card deselects previous", () => {
-      const c1 = getCardsIn("todo")[0];
+      const c1 = getCardsIn("not_started")[0];
       const c2 = getCardsIn("in_progress")[0];
       c1.click();
       c2.click();
@@ -339,7 +346,7 @@ describe("Kanban Board Client", () => {
     });
 
     test("click with GUID IDs works (core bug fix)", () => {
-      expect(getCardsIn("todo")[0].dataset.id).toBe("abc-001");
+      expect(getCardsIn("not_started")[0].dataset.id).toBe("abc-001");
       openDetail("abc-001");
       expect(detailIsOpen()).toBe(true);
       expect(document.getElementById("detail-title").textContent).toBe("Buy groceries");
@@ -354,7 +361,14 @@ describe("Kanban Board Client", () => {
 
     test("shows correct status", () => {
       openDetail("abc-001");
-      expect(document.getElementById("detail-status").value).toBe("todo");
+      expect(document.getElementById("detail-status").value).toBe("not_started");
+    });
+
+    test("shows AI status dropdown", () => {
+      openDetail("abc-001");
+      const aiStatus = document.getElementById("detail-ai-status");
+      expect(aiStatus).toBeTruthy();
+      expect(aiStatus.value).toBe("not_applicable");
     });
 
     test("shows correct priority", () => {
@@ -420,7 +434,7 @@ describe("Kanban Board Client", () => {
 
   describe("Drag and Drop", () => {
     test("dragstart sets dragging class", () => {
-      const card = getCardsIn("todo")[0];
+      const card = getCardsIn("not_started")[0];
       const dt = makeDT();
       card.dispatchEvent(dragEv("dragstart", dt));
       expect(card.classList.contains("dragging")).toBe(true);
@@ -435,7 +449,7 @@ describe("Kanban Board Client", () => {
     });
 
     test("drop on different column calls status API", async () => {
-      const card = getCardsIn("todo")[0];
+      const card = getCardsIn("not_started")[0];
       const dt = makeDT();
       card.dispatchEvent(dragEv("dragstart", dt));
       getColumn("in_progress").querySelector(".column-cards").dispatchEvent(dragEv("drop", dt));
@@ -450,16 +464,16 @@ describe("Kanban Board Client", () => {
 
     test("drop moves card optimistically", () => {
       const dt = makeDT();
-      getCardsIn("todo")[0].dispatchEvent(dragEv("dragstart", dt));
+      getCardsIn("not_started")[0].dispatchEvent(dragEv("dragstart", dt));
       getColumn("in_progress").querySelector(".column-cards").dispatchEvent(dragEv("drop", dt));
       expect(getCardsIn("in_progress").length).toBe(2);
-      expect(getCardsIn("todo").length).toBe(0);
+      expect(getCardsIn("not_started").length).toBe(0);
     });
 
     test("drop on same column is a no-op", async () => {
       const dt = makeDT();
-      getCardsIn("todo")[0].dispatchEvent(dragEv("dragstart", dt));
-      getColumn("todo").querySelector(".column-cards").dispatchEvent(dragEv("drop", dt));
+      getCardsIn("not_started")[0].dispatchEvent(dragEv("dragstart", dt));
+      getColumn("not_started").querySelector(".column-cards").dispatchEvent(dragEv("drop", dt));
       await flush();
 
       const call = fetchMock.mock.calls.find(
@@ -478,16 +492,16 @@ describe("Kanban Board Client", () => {
       });
 
       const dt = makeDT();
-      getCardsIn("todo")[0].dispatchEvent(dragEv("dragstart", dt));
-      getColumn("done").querySelector(".column-cards").dispatchEvent(dragEv("drop", dt));
-      expect(getCardsIn("todo").length).toBe(0); // optimistic
+      getCardsIn("not_started")[0].dispatchEvent(dragEv("dragstart", dt));
+      getColumn("complete").querySelector(".column-cards").dispatchEvent(dragEv("drop", dt));
+      expect(getCardsIn("not_started").length).toBe(0); // optimistic
 
       await flush();
-      expect(getCardsIn("todo").length).toBe(1); // reverted
+      expect(getCardsIn("not_started").length).toBe(1); // reverted
     });
 
     test("dragend removes dragging class", () => {
-      const card = getCardsIn("todo")[0];
+      const card = getCardsIn("not_started")[0];
       const dt = makeDT();
       card.dispatchEvent(dragEv("dragstart", dt));
       card.dispatchEvent(dragEv("dragend", dt));
@@ -495,7 +509,7 @@ describe("Kanban Board Client", () => {
     });
 
     test("drag and drop works with GUID IDs (core bug fix)", async () => {
-      const card = getCardsIn("todo")[0];
+      const card = getCardsIn("not_started")[0];
       expect(card.dataset.id).toBe("abc-001");
       const dt = makeDT();
       card.dispatchEvent(dragEv("dragstart", dt));
@@ -653,7 +667,7 @@ describe("Kanban Board Client", () => {
       expect(fetchMock.mock.calls.find(
         ([url, opts]) => url.includes("/tasks/abc-001") && opts && opts.method === "DELETE"
       )).toBeTruthy();
-      expect(getCardsIn("todo").length).toBe(0);
+      expect(getCardsIn("not_started").length).toBe(0);
     });
 
     test("cancelled delete keeps task", async () => {
@@ -661,7 +675,7 @@ describe("Kanban Board Client", () => {
       global.confirm.mockReturnValue(false);
       document.getElementById("delete-task-btn").click();
       await flush();
-      expect(getCardsIn("todo").length).toBe(1);
+      expect(getCardsIn("not_started").length).toBe(1);
     });
   });
 

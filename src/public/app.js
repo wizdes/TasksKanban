@@ -67,14 +67,14 @@ function renderBoard() {
     : tasks;
 
   const columns = {
-    todo: [],
+    not_started: [],
     in_progress: [],
-    done: [],
+    complete: [],
     cancelled: [],
   };
 
   filtered.forEach((t) => {
-    const status = (t.status || "todo").toLowerCase().replace(/ /g, "_");
+    const status = (t.status || "not_started").toLowerCase().replace(/ /g, "_");
     if (columns[status]) columns[status].push(t);
   });
 
@@ -118,7 +118,7 @@ function renderCard(task) {
   const dueCssClasses = ["card-due", dueClass].filter(Boolean).join(" ");
   const dueHtml = due ? `<span class="${dueCssClasses}">${due}</span>` : "";
 
-  const doneClass = task.status === "done" ? " done" : "";
+  const doneClass = task.status === "complete" ? " done" : "";
 
   return `<div class="card${doneClass}" data-id="${task.id}" draggable="true">
     <div class="card-title">${escHtml(task.title)}</div>
@@ -182,7 +182,7 @@ document.getElementById("board").addEventListener("drop", async (e) => {
   const task = tasks.find((t) => t.id === draggedTaskId);
   if (!task) return;
 
-  const oldStatus = (task.status || "todo").toLowerCase().replace(/ /g, "_");
+  const oldStatus = (task.status || "not_started").toLowerCase().replace(/ /g, "_");
   if (oldStatus === newStatus) return;
 
   // Optimistic update
@@ -305,10 +305,20 @@ function renderDetail(task) {
     <div class="field-row">
       <label>Status</label>
       <select id="detail-status">
-        <option value="todo"${task.status === "todo" ? " selected" : ""}>Todo</option>
+        <option value="not_started"${task.status === "not_started" ? " selected" : ""}>Not Started</option>
         <option value="in_progress"${task.status === "in_progress" ? " selected" : ""}>In Progress</option>
-        <option value="done"${task.status === "done" ? " selected" : ""}>Done</option>
+        <option value="complete"${task.status === "complete" ? " selected" : ""}>Complete</option>
         <option value="cancelled"${task.status === "cancelled" ? " selected" : ""}>Cancelled</option>
+      </select>
+    </div>
+    <div class="field-row">
+      <label>AI Status</label>
+      <select id="detail-ai-status">
+        <option value="not_applicable"${(task.aiStatus || "not_applicable") === "not_applicable" ? " selected" : ""}>Not Applicable</option>
+        <option value="planning_ready"${task.aiStatus === "planning_ready" ? " selected" : ""}>Planning Ready</option>
+        <option value="review_ready"${task.aiStatus === "review_ready" ? " selected" : ""}>Review Ready</option>
+        <option value="agent_execution_ready"${task.aiStatus === "agent_execution_ready" ? " selected" : ""}>Agent Execution Ready</option>
+        <option value="agent_complete"${task.aiStatus === "agent_complete" ? " selected" : ""}>Agent Complete</option>
       </select>
     </div>
     <div class="field-row">
@@ -423,6 +433,20 @@ function bindDetailEvents(task) {
       task.status = oldStatus;
       renderBoard();
       renderDetail(task);
+    }
+  });
+
+  const aiStatusSelect = document.getElementById("detail-ai-status");
+  aiStatusSelect.addEventListener("change", async () => {
+    const newAiStatus = aiStatusSelect.value;
+    try {
+      await api(`/tasks/${task.id}/ai-status`, {
+        method: "PATCH",
+        body: JSON.stringify({ aiStatus: newAiStatus }),
+      });
+      task.aiStatus = newAiStatus;
+    } catch (err) {
+      toast("Failed to update AI status");
     }
   });
 
@@ -703,7 +727,7 @@ document.getElementById("new-task-btn").addEventListener("click", async () => {
       method: "POST",
       body: JSON.stringify({
         title: title.trim(),
-        status: "todo",
+        status: "not_started",
         folderId: currentFolder || null,
       }),
     });

@@ -34,16 +34,16 @@ app.get("/kanban", auth, (req, res) => {
     </header>
     <div id="content">
       <div id="board">
-        <div class="column" data-status="todo">
-          <div class="column-header"><span class="column-title">Todo</span> <span class="column-count">0</span></div>
+        <div class="column" data-status="not_started">
+          <div class="column-header"><span class="column-title">Not Started</span> <span class="column-count">0</span></div>
           <div class="column-cards"></div>
         </div>
         <div class="column" data-status="in_progress">
           <div class="column-header"><span class="column-title">In Progress</span> <span class="column-count">0</span></div>
           <div class="column-cards"></div>
         </div>
-        <div class="column" data-status="done">
-          <div class="column-header"><span class="column-title">Done</span> <span class="column-count">0</span></div>
+        <div class="column" data-status="complete">
+          <div class="column-header"><span class="column-title">Complete</span> <span class="column-count">0</span></div>
           <div class="column-cards"></div>
         </div>
         <div class="column" data-status="cancelled">
